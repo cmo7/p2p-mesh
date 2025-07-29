@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { chunkFile } from "../src";
-import { getExampleBuffer, emptyBuffer, getTestImageBuffer } from "./testdata";
+import { emptyBuffer, getExampleBuffer, getTestImageBuffer } from "./testdata";
 
 test("divides buffer correctly", async () => {
 	const buffer = getExampleBuffer(1024);

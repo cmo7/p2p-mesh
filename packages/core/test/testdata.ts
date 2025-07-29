@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Devuelve el ArrayBuffer de la imagen de test ubicada en test/data/24011087867_640a7a55ed_b.jpg

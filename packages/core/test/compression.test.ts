@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { chunkFile, compressChunk, decompressChunk, type UnCompressedChunk } from "../src";
-import { getExampleBuffer, getTestImageBuffer, getLargeTextBuffer } from "./testdata";
+import { getExampleBuffer, getLargeTextBuffer, getTestImageBuffer } from "./testdata";
 
 test("can compress and decompress chunks", async () => {
 	const data = getExampleBuffer(2048);
