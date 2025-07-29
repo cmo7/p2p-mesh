@@ -8,7 +8,10 @@ export function getTestImageBuffer(): ArrayBuffer {
 	const imgPath = join(__dirname, "data", "24011087867_640a7a55ed_b.jpg");
 	const buffer = readFileSync(imgPath);
 	// Node.js Buffer -> ArrayBuffer
-	return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+	return buffer.buffer.slice(
+		buffer.byteOffset,
+		buffer.byteOffset + buffer.byteLength,
+	);
 }
 /**
  * Utilidades y datos de prueba para los tests del módulo core
@@ -35,5 +38,8 @@ export const emptyBuffer = new ArrayBuffer(0);
 export function getLargeTextBuffer(): ArrayBuffer {
 	const file = join(__dirname, "data", "don_quijote.txt");
 	const buffer = readFileSync(file);
-	return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+	return buffer.buffer.slice(
+		buffer.byteOffset,
+		buffer.byteOffset + buffer.byteLength,
+	);
 }

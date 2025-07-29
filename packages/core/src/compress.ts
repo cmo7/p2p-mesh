@@ -40,9 +40,9 @@ export async function decompressChunk(
 		chunk.data,
 		chunk.compressionAlgorithm,
 	);
-    
-    const decompressedChunk = {
-        	...chunk,
+
+	const decompressedChunk = {
+		...chunk,
 		data: decompressedData,
 		// Reset compression properties
 		compressed: false,
@@ -50,9 +50,9 @@ export async function decompressChunk(
 		transportChecksum: undefined,
 	};
 
-    if (!isValidTransportChecksum(chunk)) {
-        throw new Error("Invalid transport checksum after decompression.");
-    }
+	if (!isValidTransportChecksum(chunk)) {
+		throw new Error("Invalid transport checksum after decompression.");
+	}
 
 	return decompressedChunk as UnCompressedChunk;
 }
@@ -86,28 +86,28 @@ function decompressData(
 }
 
 function compressWithGzip(data: ArrayBuffer): ArrayBuffer {
-    const compressed = gzip(new Uint8Array(data));
-    return compressed.slice().buffer;
+	const compressed = gzip(new Uint8Array(data));
+	return compressed.slice().buffer;
 }
 
 function compressWithDeflate(data: ArrayBuffer): ArrayBuffer {
-    const compressed = deflate(new Uint8Array(data));
-    return compressed.slice().buffer;
+	const compressed = deflate(new Uint8Array(data));
+	return compressed.slice().buffer;
 }
 
 function decompressWithGzip(data: ArrayBuffer): ArrayBuffer {
-    const decompressed = ungzip(new Uint8Array(data));
-    return decompressed.slice().buffer;
+	const decompressed = ungzip(new Uint8Array(data));
+	return decompressed.slice().buffer;
 }
 
 function decompressWithDeflate(data: ArrayBuffer): ArrayBuffer {
-    const decompressed = inflate(new Uint8Array(data));
-    return decompressed.slice().buffer;
+	const decompressed = inflate(new Uint8Array(data));
+	return decompressed.slice().buffer;
 }
 
 function checksumTransport(chunk: CompressedChunk): string {
-    if (!isCompressed(chunk)) {
-        throw new Error("Chunk is not compressed.");
-    }
-    return chunk.transportChecksum || "";
+	if (!isCompressed(chunk)) {
+		throw new Error("Chunk is not compressed.");
+	}
+	return chunk.transportChecksum || "";
 }

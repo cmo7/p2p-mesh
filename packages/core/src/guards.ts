@@ -14,5 +14,7 @@ export function isCompressed(chunk: Chunk): chunk is Chunk & {
 	compressed: true;
 	compressionAlgorithm: "gzip" | "deflate";
 } {
-	return chunk.compressed === true && typeof chunk.compressionAlgorithm === "string";
+	return (
+		chunk.compressed === true && typeof chunk.compressionAlgorithm === "string"
+	);
 }

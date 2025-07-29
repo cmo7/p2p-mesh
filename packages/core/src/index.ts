@@ -4,3 +4,4 @@ export * from "./compress";
 export * from "./guards";
 export * from "./signing";
 export * from "./types";
+export * from "./keyring";

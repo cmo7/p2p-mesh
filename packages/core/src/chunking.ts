@@ -8,13 +8,16 @@ import type { ChunkedFile, UnsignedChunk } from "./types";
  */
 export async function chunkFile(
 	file: ArrayBuffer,
-	options?: { chunkSize?: number }
+	options?: { chunkSize?: number },
 ): Promise<ChunkedFile> {
 	const chunkSize = options?.chunkSize ?? 64 * 1024;
 	const chunks: UnsignedChunk[] = [];
 	const totalChunks = Math.ceil(file.byteLength / chunkSize);
 	for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
-		const chunkData = file.slice(chunkNumber * chunkSize, (chunkNumber + 1) * chunkSize);
+		const chunkData = file.slice(
+			chunkNumber * chunkSize,
+			(chunkNumber + 1) * chunkSize,
+		);
 		const checksum = await getChunkChecksum(chunkData);
 
 		const chunk: UnsignedChunk = {

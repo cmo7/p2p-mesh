@@ -2,7 +2,7 @@
 	"name": "core",
 	"version": "0.1.0",
 	"main": "dist/index.cjs",
-	"module": "dist/index.mjs",
+	"module": "dist/esm/index.js",
 	"types": "dist/index.d.ts",
 	"type": "module",
 	"scripts": {
