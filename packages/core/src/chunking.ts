@@ -7,6 +7,7 @@ import type { ChunkedFile, UnsignedChunk } from "./types";
  * @param options Opciones de chunking (chunkSize, etc)
  */
 export async function chunkFile(
+	filename: string,
 	file: ArrayBuffer,
 	options?: { chunkSize?: number },
 ): Promise<ChunkedFile> {
@@ -36,6 +37,8 @@ export async function chunkFile(
 		chunks.push(chunk);
 	}
 	return {
+		filename: filename,
+		hash: await getChunkChecksum(file),
 		chunks: chunks,
 	};
 }
@@ -62,5 +65,5 @@ export async function sortChunks(
 	const sortedChunks = [...chunkedFile.chunks].sort(
 		(a, b) => a.index - b.index,
 	);
-	return { chunks: sortedChunks };
+	return { ...chunkedFile, chunks: sortedChunks };
 }
