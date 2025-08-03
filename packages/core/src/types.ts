@@ -1,4 +1,4 @@
-import { UUID } from "crypto";
+import type { UUID } from "crypto";
 
 /**
  * Mapa de metadatos arbitrarios para chunks.
@@ -48,6 +48,10 @@ export type Chunk = {
 	signature?: string;
 	/** Firmante del chunk, si está firmado */
 	signerId?: UUID;
+	/** Algoritmo de cifrado usado */
+	cypherAlgorithm?: CypherAlgorithm;
+	/** Vector de inicialización cifrado usado */
+	iv?: string;
 };
 
 /**
@@ -86,6 +90,11 @@ export type UnCompressedChunk = Chunk & {
  * @property chunks Array de chunks que componen el archivo.
  */
 export type ChunkedFile = {
+	/** Nombre del archivo original */
+	filename: string;
+	/** Hash SHA-256 en base64 del archivo original */
+	hash: string;
+	/** Array de chunks que componen el archivo */
 	chunks: Chunk[];
 };
 
@@ -95,6 +104,8 @@ export type ChunkedFile = {
 export type CompressionAlgorithm = "gzip" | "deflate";
 
 export type SignatureAlgorithm = "RSASSA-PKCS1-v1_5" | "ECDSA";
+
+export type CypherAlgorithm = "NONE" | "AES-GCM" | "AES-CBC";
 
 export type KeyringEntry = {
 	id: UUID;
@@ -107,4 +118,3 @@ export type Keyring = {
 	add: (id: UUID, key: CryptoKey) => void;
 	remove: (id: UUID) => void;
 };
-
