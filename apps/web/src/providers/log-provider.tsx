@@ -14,8 +14,5 @@ export function LogProvider(props: LogProviderProps) {
 
 export function useLog() {
 	const context = useContext(LogContext);
-	if (!context) {
-		throw new Error("useLog must be used within a LogProvider");
-	}
 	return context;
 }

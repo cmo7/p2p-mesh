@@ -10,6 +10,14 @@ export type ChunkDBEntry = Omit<Chunk, "data"> & {
 	data: Uint8Array; // Convert ArrayBuffer to Uint8Array for IndexedDB
 };
 
+// Tipos para callbacks de progreso
+export type ProgressCallback = (current: number, total: number) => void;
+export type RemoveProgressCallback = (
+	current: number,
+	total: number,
+	chunkIndex?: number,
+) => void;
+
 class StorageDB {
 	private static instance: StorageDB;
 	private db: IDBDatabase | null = null;
@@ -65,42 +73,76 @@ class StorageDB {
 		});
 	}
 
-	// Recupera todos los chunks de un archivo por hash
-	public async getChunksForFile(hash: string): Promise<Chunk[]> {
+	// Recupera todos los chunks de un archivo por hash usando una transacción
+	public async getChunksForFile(
+		hash: string,
+		options: { onProgress?: ProgressCallback } = {},
+	): Promise<Chunk[]> {
 		console.log("Getting chunks for file with hash:", hash);
 		if (!hash) {
 			console.warn("Hash is required to get chunks for a file.");
 			return [];
 		}
-		const f = await this.getFileDBEntry(
-			this.generateFileStorageKey({ hash } as FileDBEntry),
-		);
+		const f = await this.getFileDBEntry(this.generateFileStorageKey({ hash }));
 		if (!f) {
 			console.warn("File not found in IndexedDB for hash:", hash);
 			return [];
 		}
+		const db = await this.getDB();
+		const transaction = db.transaction([this.chunkStoreName], "readonly");
+		const chunkStore = transaction.objectStore(this.chunkStoreName);
 		const chunks: Chunk[] = [];
-		for (let i = 0; i < f.size; i++) {
-			const key = this.generateChunkStorageKey(i, hash);
-			const chunk = await this.getChunkDBEntry(key);
-			if (chunk) {
-				chunks.push(chunk);
+		let completed = 0;
+		return new Promise<Chunk[]>((resolve, reject) => {
+			for (let i = 0; i < f.size; i++) {
+				const key = this.generateChunkStorageKey(i, hash);
+				const request = chunkStore.get(key);
+				request.onsuccess = () => {
+					const chunk = request.result as ChunkDBEntry | undefined;
+					if (chunk) {
+						chunks.push(chunk);
+					}
+					completed++;
+					if (options.onProgress) {
+						options.onProgress(completed, f.size);
+					}
+					if (completed === f.size) {
+						resolve(chunks);
+					}
+				};
+				request.onerror = () => {
+					completed++;
+					if (completed === f.size) {
+						resolve(chunks);
+					}
+				};
 			}
-		}
-		return chunks;
+			transaction.onerror = () => reject(transaction.error);
+			transaction.onabort = () => reject(transaction.error);
+		});
 	}
 
 	// Recupera un archivo completo, hidratando sus chunks
-	public async getHydratedFile(hash: string): Promise<ChunkedFile | undefined> {
+	public async getHydratedFile(
+		hash: string,
+		options: {
+			onDbRetrievalProgress?: ProgressCallback;
+		} = {},
+	): Promise<ChunkedFile | undefined> {
 		console.log("Getting hydrated file for hash:", hash);
-		const fileKey = this.generateFileStorageKey({ hash } as FileDBEntry);
+		const fileKey = this.generateFileStorageKey({ hash });
 		const fileEntry = await this.getFileDBEntry(fileKey);
 		if (!fileEntry) return undefined;
-		const chunks = await this.getChunksForFile(hash);
-		if (chunks.length === 0) {
-			console.warn("No chunks found for file with hash:", hash);
+		const chunks = await this.getChunksForFile(hash, {
+			onProgress: options.onDbRetrievalProgress,
+		});
+		if (chunks.length !== fileEntry.size) {
+			console.warn(
+				`Not all chunks are present for file with hash: ${hash}. Expected: ${fileEntry.size}, found: ${chunks.length}`,
+			);
 			return undefined;
-		} else if (chunks.some((chunk) => !chunk.data)) {
+		}
+		if (chunks.some((chunk) => !chunk.data)) {
 			console.warn("Some chunks are missing data for file with hash:", hash);
 			return undefined;
 		}
@@ -154,7 +196,11 @@ class StorageDB {
 		return this.dbPromise;
 	}
 
-	private generateFileStorageKey(metadata: FileDBEntry): string {
+	private generateFileStorageKey(metadata: Partial<FileDBEntry>): string {
+		if (!metadata.hash) {
+			console.error("Metadata hash is required to generate file storage key.");
+			throw new Error("Metadata hash is required.");
+		}
 		return `chunked-file-${metadata.hash}`;
 	}
 
@@ -207,41 +253,51 @@ class StorageDB {
 		});
 	}
 
+	// Guarda un archivo chunked en IndexedDB con tracking de progreso y transacción para todos los chunks
 	public async saveChunkedFileToIndexedDB(
 		chunkedFile: ChunkedFile,
+		options: { onProgress?: ProgressCallback } = {},
 	): Promise<void> {
 		console.log("Saving chunked file to IndexedDB:", chunkedFile.filename);
 		if (!chunkedFile.chunks || chunkedFile.chunks.length === 0) {
 			console.error("Chunked file has no chunks:", chunkedFile);
 			throw new Error("Chunked file must have at least one chunk.");
 		}
-		const store = await this.getFileStore();
-		const key = this.generateFileStorageKey({
-			hash: chunkedFile.hash,
-		} as FileDBEntry);
+		const db = await this.getDB();
+		const transaction = db.transaction(
+			[this.fileStoreName, this.chunkStoreName],
+			"readwrite",
+		);
+		const fileStore = transaction.objectStore(this.fileStoreName);
+		const chunkStore = transaction.objectStore(this.chunkStoreName);
+		const key = this.generateFileStorageKey(chunkedFile);
 		const fileMetadata: FileDBEntry = {
 			filename: chunkedFile.filename,
 			hash: chunkedFile.hash,
 			size: chunkedFile.chunks.length,
 		};
-		const request = store.put(fileMetadata, key);
-		await new Promise<void>((resolve, reject) => {
-			request.onerror = () => {
-				console.error(
-					"IndexedDB file put error:",
-					request.error,
-					fileMetadata,
-					key,
-				);
-				reject(request.error);
+		fileStore.put(fileMetadata, key);
+		for (let i = 0; i < chunkedFile.chunks.length; i++) {
+			const chunk = chunkedFile.chunks[i];
+			const chunkKey = this.generateChunkStorageKey(
+				chunk.index,
+				chunkedFile.hash,
+			);
+			const chunkEntry: ChunkDBEntry = {
+				...chunk,
+				hash: chunkedFile.hash,
+				data: new Uint8Array(chunk.data),
 			};
-			request.onsuccess = () => resolve();
+			chunkStore.put(chunkEntry, chunkKey);
+			if (options.onProgress) {
+				options.onProgress(i + 1, chunkedFile.chunks.length);
+			}
+		}
+		return new Promise<void>((resolve, reject) => {
+			transaction.oncomplete = () => resolve();
+			transaction.onerror = () => reject(transaction.error);
+			transaction.onabort = () => reject(transaction.error);
 		});
-		await Promise.all(
-			chunkedFile.chunks.map((chunk) =>
-				this.saveChunkToIndexedDB(chunk, chunkedFile.hash),
-			),
-		);
 	}
 
 	public async getFiles(): Promise<FileDBEntry[]> {
@@ -256,16 +312,35 @@ class StorageDB {
 		});
 	}
 
-	public async removeFile(hash: string): Promise<void> {
-		const fileKey = this.generateFileStorageKey({ hash } as FileDBEntry);
-		const store = await this.getFileStore();
+	public async removeFile(
+		hash: string,
+		options: { onProgress?: RemoveProgressCallback } = {},
+	): Promise<void> {
+		const fileKey = this.generateFileStorageKey({ hash });
+		const fileEntry = await this.getFileDBEntry(fileKey);
+		if (!fileEntry) {
+			// No file, nothing to remove
+			return;
+		}
+		const db = await this.getDB();
+		const transaction = db.transaction(
+			[this.fileStoreName, this.chunkStoreName],
+			"readwrite",
+		);
+		const fileStore = transaction.objectStore(this.fileStoreName);
+		const chunkStore = transaction.objectStore(this.chunkStoreName);
+		for (let i = 0; i < fileEntry.size; i++) {
+			const chunkKey = this.generateChunkStorageKey(i, hash);
+			chunkStore.delete(chunkKey);
+			if (options.onProgress) {
+				options.onProgress(i + 1, fileEntry.size, i);
+			}
+		}
+		fileStore.delete(fileKey);
 		return new Promise((resolve, reject) => {
-			const request = store.delete(fileKey);
-			request.onsuccess = () => resolve();
-			request.onerror = () => {
-				console.error("IndexedDB file delete error:", request.error, fileKey);
-				reject(request.error);
-			};
+			transaction.oncomplete = () => resolve();
+			transaction.onerror = () => reject(transaction.error);
+			transaction.onabort = () => reject(transaction.error);
 		});
 	}
 }
@@ -281,8 +356,9 @@ export async function saveChunkToIndexedDB(
 
 export async function saveChunkedFileToIndexedDB(
 	chunkedFile: ChunkedFile,
+	options?: { onProgress?: (current: number, total: number) => void },
 ): Promise<void> {
-	return storageDB.saveChunkedFileToIndexedDB(chunkedFile);
+	return storageDB.saveChunkedFileToIndexedDB(chunkedFile, options ?? {});
 }
 
 export async function getFileDBEntry(
@@ -306,8 +382,11 @@ export async function getChunkDBEntry(key: string): Promise<Chunk | undefined> {
 
 export async function getHydratedFile(
 	hash: string,
+	options?: {
+		onDbRetrievalProgress?: (current: number, total: number) => void;
+	},
 ): Promise<ChunkedFile | undefined> {
-	return storageDB.getHydratedFile(hash);
+	return storageDB.getHydratedFile(hash, options ?? {});
 }
 
 export async function getChunkByHashAndIndex(
@@ -321,6 +400,9 @@ export async function getFiles(): Promise<FileDBEntry[]> {
 	return storageDB.getFiles();
 }
 
-export async function removeFile(hash: string): Promise<void> {
-	return storageDB.removeFile(hash);
+export async function removeFile(
+	hash: string,
+	options?: { onProgress?: RemoveProgressCallback },
+): Promise<void> {
+	return storageDB.removeFile(hash, options ?? {});
 }

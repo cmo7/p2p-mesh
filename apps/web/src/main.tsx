@@ -1,13 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
-import { consoleLogger } from "./lib/logger.ts";
-import { LogProvider } from "./providers/log-provider.tsx";
 
+// biome-ignore lint/style/noNonNullAssertion: We are sure that the root element exists
 createRoot(document.getElementById("root")!).render(
 	<StrictMode>
-		<LogProvider logger={consoleLogger}>
-			<App />
-		</LogProvider>
+		<App />
 	</StrictMode>,
 );

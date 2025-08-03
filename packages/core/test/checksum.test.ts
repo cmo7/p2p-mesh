@@ -3,7 +3,11 @@ import { chunkFile, isValidChunk } from "../src";
 
 test("chunks checksum is correct", async () => {
 	const buffer = new ArrayBuffer(1024);
-	const file = await chunkFile(buffer, { chunkSize: 256 });
+	const file = await chunkFile({
+		filename: "test file",
+		file: buffer,
+		chunkSize: 256,
+	});
 	for (const chunk of file.chunks) {
 		const checksum = await chunk.checksum;
 		expect(checksum).toBeDefined();
@@ -13,7 +17,11 @@ test("chunks checksum is correct", async () => {
 
 test("chunks with invalid checksum are detected", async () => {
 	const buffer = new ArrayBuffer(1024);
-	const file = await chunkFile(buffer, { chunkSize: 256 });
+	const file = await chunkFile({
+		filename: "test file",
+		file: buffer,
+		chunkSize: 256,
+	});
 	for (const chunk of file.chunks) {
 		// Modify the chunk data to create an invalid checksum
 		chunk.data = new Uint8Array(chunk.data).map(() => 1).buffer;

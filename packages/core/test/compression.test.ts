@@ -13,7 +13,11 @@ import {
 
 test("can compress and decompress chunks", async () => {
 	const data = getExampleBuffer(2048);
-	const { chunks } = await chunkFile(data, { chunkSize: 512 });
+	const { chunks } = await chunkFile({
+		filename: "test file",
+		file: data,
+		chunkSize: 512,
+	});
 	for (const chunk of chunks) {
 		const compressed = await compressChunk(chunk as UnCompressedChunk, "gzip");
 		expect(compressed).toBeDefined();
@@ -24,7 +28,11 @@ test("can compress and decompress chunks", async () => {
 
 test("can compress and decompress a real image file", async () => {
 	const data = getTestImageBuffer();
-	const { chunks } = await chunkFile(data, { chunkSize: 512 * 1024 });
+	const { chunks } = await chunkFile({
+		filename: "test file",
+		file: data,
+		chunkSize: 512 * 1024,
+	});
 	for (const chunk of chunks) {
 		const compressed = await compressChunk(chunk as UnCompressedChunk, "gzip");
 		expect(compressed).toBeDefined();
@@ -35,7 +43,11 @@ test("can compress and decompress a real image file", async () => {
 
 test("can compress and decompress a large text file", async () => {
 	const data = getLargeTextBuffer();
-	const { chunks } = await chunkFile(data, { chunkSize: 4096 });
+	const { chunks } = await chunkFile({
+		filename: "test file",
+		file: data,
+		chunkSize: 4096,
+	});
 	for (const chunk of chunks) {
 		const compressed = await compressChunk(chunk as UnCompressedChunk, "gzip");
 		expect(compressed).toBeDefined();

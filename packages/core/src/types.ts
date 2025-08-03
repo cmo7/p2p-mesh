@@ -23,9 +23,34 @@ export type MetadataMap = {
  * @property signed Indica si el chunk está firmado.
  * @property signature Firma digital en base64.
  */
+
+export type ChunkStatus = "ok" | "pending" | "downloading" | "error";
+
+export type PendingChunk = {
+	index: number;
+	status: "pending";
+	total: number;
+	data?: never;
+	chunkSize?: never;
+	metadata?: MetadataMap;
+	checksum?: never;
+	transportChecksum?: never;
+	compressed?: never;
+	compressionAlgorithm?: never;
+	signed?: never;
+	signature?: never;
+	signerId?: never;
+	cypherAlgorithm?: never;
+	iv?: never;
+};
+
+
+
 export type Chunk = {
 	/** Posición del chunk en el archivo original */
 	index: number;
+	/** Estado del chunk */
+	status: ChunkStatus;
 	/** Número total de chunks en el archivo */
 	total: number;
 	/** Datos binarios del chunk */
@@ -85,11 +110,26 @@ export type UnCompressedChunk = Chunk & {
 	compressionAlgorithm?: never;
 };
 
+export type FileStatus = "completed" | "incomplete";
+
 /**
  * Representa un archivo dividido en chunks.
  * @property chunks Array de chunks que componen el archivo.
  */
-export type ChunkedFile = {
+export type UncompletedChunkedFile = {
+	/** Estado del archivo */
+	status: "incomplete";
+	/** Nombre del archivo original */
+	filename: string;
+	/** Hash SHA-256 en base64 del archivo original */
+	hash: string;
+	/** Array de chunks que componen el archivo */
+	chunks: (Chunk | PendingChunk)[];
+};
+
+export type CompletedChunkedFile = {
+	/** Estado del archivo */
+	status: "completed";
 	/** Nombre del archivo original */
 	filename: string;
 	/** Hash SHA-256 en base64 del archivo original */
@@ -97,6 +137,8 @@ export type ChunkedFile = {
 	/** Array de chunks que componen el archivo */
 	chunks: Chunk[];
 };
+
+export type ChunkedFile = UncompletedChunkedFile | CompletedChunkedFile;
 
 /**
  * Algoritmos de compresión soportados.

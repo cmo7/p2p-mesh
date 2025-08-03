@@ -10,12 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "core": "workspace:*",
     "@tanstack/react-router": "^1.130.2",
+    "core": "workspace:*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-dropzone": "^14.3.8",
-    "vite-plugin-pwa": "^1.0.2"
+    "vite-plugin-pwa": "^1.0.2",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.1.2",

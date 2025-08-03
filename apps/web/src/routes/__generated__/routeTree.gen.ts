@@ -9,38 +9,82 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./../__root"
+import { Route as UploadRouteImport } from "./../upload"
+import { Route as FilesRouteImport } from "./../files"
 import { Route as IndexRouteImport } from "./../index"
+import { Route as DetailsIdRouteImport } from "./../details/$id"
 
+const UploadRoute = UploadRouteImport.update({
+  id: "/upload",
+  path: "/upload",
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FilesRoute = FilesRouteImport.update({
+  id: "/files",
+  path: "/files",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: "/",
   path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
+const DetailsIdRoute = DetailsIdRouteImport.update({
+  id: "/details/$id",
+  path: "/details/$id",
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
+  "/files": typeof FilesRoute
+  "/upload": typeof UploadRoute
+  "/details/$id": typeof DetailsIdRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
+  "/files": typeof FilesRoute
+  "/upload": typeof UploadRoute
+  "/details/$id": typeof DetailsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   "/": typeof IndexRoute
+  "/files": typeof FilesRoute
+  "/upload": typeof UploadRoute
+  "/details/$id": typeof DetailsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: "/"
+  fullPaths: "/" | "/files" | "/upload" | "/details/$id"
   fileRoutesByTo: FileRoutesByTo
-  to: "/"
-  id: "__root__" | "/"
+  to: "/" | "/files" | "/upload" | "/details/$id"
+  id: "__root__" | "/" | "/files" | "/upload" | "/details/$id"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FilesRoute: typeof FilesRoute
+  UploadRoute: typeof UploadRoute
+  DetailsIdRoute: typeof DetailsIdRoute
 }
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
+    "/upload": {
+      id: "/upload"
+      path: "/upload"
+      fullPath: "/upload"
+      preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    "/files": {
+      id: "/files"
+      path: "/files"
+      fullPath: "/files"
+      preLoaderRoute: typeof FilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/": {
       id: "/"
       path: "/"
@@ -48,11 +92,21 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/details/$id": {
+      id: "/details/$id"
+      path: "/details/$id"
+      fullPath: "/details/$id"
+      preLoaderRoute: typeof DetailsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FilesRoute: FilesRoute,
+  UploadRoute: UploadRoute,
+  DetailsIdRoute: DetailsIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

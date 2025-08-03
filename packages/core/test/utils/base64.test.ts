@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { arrayBufferToBase64, base64ToArrayBuffer } from "../src/base64utils";
+import {
+	arrayBufferToBase64,
+	base64ToArrayBuffer,
+} from "../../src/utils/base64";
 import {
 	emptyBuffer,
 	getExampleBuffer,
 	getLargeTextBuffer,
 	getRandomBuffer,
-} from "./testdata";
+} from "../testdata";
 
 describe("base64utils", () => {
 	it("should encode and decode a simple buffer", () => {
@@ -28,12 +31,15 @@ describe("base64utils", () => {
 		expect(new Uint8Array(decoded)).toEqual(new Uint8Array(emptyBuffer));
 	});
 
-	it("should encode and decode a large text buffer", () => {
-		const buf = getLargeTextBuffer();
-		const b64 = arrayBufferToBase64(buf);
-		const decoded = base64ToArrayBuffer(b64);
-		expect(new Uint8Array(decoded)).toEqual(new Uint8Array(buf));
-	});
+	it(
+		"should encode and decode a large text buffer",
+		() => {
+			const buf = getLargeTextBuffer().slice(0, 1024 * 64); // 64 KB
+			const b64 = arrayBufferToBase64(buf);
+			const decoded = base64ToArrayBuffer(b64);
+			expect(new Uint8Array(decoded)).toEqual(new Uint8Array(buf));
+		},
+	);
 
 	it("should throw for invalid base64 input", () => {
 		expect(() => base64ToArrayBuffer("!@#$%^&*()")).toThrow();

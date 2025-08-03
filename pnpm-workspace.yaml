@@ -4,4 +4,11 @@ packages:
   - test/*
 
 onlyBuiltDependencies:
+  - base64
+  - compress-buffer
   - esbuild
+  - hiredis
+  - iconv
+  - pg
+  - stacktrace
+  - uriparser
