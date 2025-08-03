@@ -1,11 +1,11 @@
 import type { UUID } from "node:crypto";
-import { arrayBufferToBase64, base64ToArrayBuffer } from "./base64utils";
 import { getChunkChecksum } from "./checksum";
 import type { Keyring, SignedChunk, UnsignedChunk } from "./types";
+import { arrayBufferToBase64, base64ToArrayBuffer } from "./utils/base64";
 
 export async function signChunk(
 	fileChunk: UnsignedChunk,
-    signerId: UUID,
+	signerId: UUID,
 	privateKey: CryptoKey,
 ): Promise<SignedChunk> {
 	const encoder = new TextEncoder();
@@ -24,11 +24,7 @@ export async function signChunk(
 			? { name: "ECDSA", hash: "SHA-256" }
 			: { name: "RSASSA-PKCS1-v1_5" };
 
-	const signature = await crypto.subtle.sign(
-		algorithm,
-		privateKey,
-		dataToSign,
-	);
+	const signature = await crypto.subtle.sign(algorithm, privateKey, dataToSign);
 
 	const signedChunk: SignedChunk = {
 		...fileChunk,
@@ -75,14 +71,13 @@ export async function verifyChunk(
 	return calculatedChecksum === chunk.checksum;
 }
 
-
 export async function verifyChunkUsingKeyring(
-    chunk: SignedChunk,
-    keyring: Keyring,
+	chunk: SignedChunk,
+	keyring: Keyring,
 ): Promise<boolean> {
-    const entry = keyring.get(chunk.signerId);
-    if (!entry) {
-        throw new Error("Key not found in keyring");
-    }
-    return verifyChunk(chunk, entry.key);
+	const entry = keyring.get(chunk.signerId);
+	if (!entry) {
+		throw new Error("Key not found in keyring");
+	}
+	return verifyChunk(chunk, entry.key);
 }

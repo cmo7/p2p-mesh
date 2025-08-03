@@ -1,8 +1,8 @@
 import type { Chunk } from "./types";
 
 // Genera un checksum sha-256 para los datos del chunk
-export async function getChunkChecksum(chunk: ArrayBuffer): Promise<string> {
-	const hash = await crypto.subtle.digest("SHA-256", chunk);
+export async function getChunkChecksum(data: ArrayBuffer): Promise<string> {
+	const hash = await crypto.subtle.digest("SHA-256", data);
 	return btoa(String.fromCharCode(...new Uint8Array(hash)));
 }
 
