@@ -1,12 +1,13 @@
 import { deflate, gzip, inflate, ungzip } from "pako";
 import type { CompletedChunk, CompressionAlgorithm } from "../types";
 import { getChecksum } from "./checksum";
+import { updateTimestamps } from "./timestamp";
 
 export function isCompressed(chunk: CompletedChunk): boolean {
 	return (
-		chunk.compression !== undefined &&
-		chunk.compression.compressionStatus === "compressed" &&
-		chunk.compression.compressionAlgorithm !== undefined
+		chunk.compressionDetails !== undefined &&
+		chunk.compressionDetails.compressionStatus === "compressed" &&
+		chunk.compressionDetails.compressionAlgorithm !== undefined
 	);
 }
 
@@ -20,32 +21,32 @@ export async function compressChunk(
 
 	switch (algorithm) {
 		case "gzip": {
-			const chunkData = compressWithGzip(chunk.data.data);
+			const chunkData = compressWithGzip(chunk.payload.data);
 			const transportChecksum = await getChecksum(chunkData);
-			chunk.compression = {
+			chunk.compressionDetails = {
 				compressionStatus: "compressed",
 				compressionAlgorithm: "gzip",
 				transportChecksum,
 			};
-			chunk.data.data = chunkData;
+			chunk.payload.data = chunkData;
+			chunk.timestamps = updateTimestamps(chunk.timestamps);
 			break;
 		}
 		case "deflate": {
-			const chunkData = compressWithDeflate(chunk.data.data);
+			const chunkData = compressWithDeflate(chunk.payload.data);
 			const transportChecksum = await getChecksum(chunkData);
-			chunk.compression = {
+			chunk.compressionDetails = {
 				compressionStatus: "compressed",
 				compressionAlgorithm: "deflate",
 				transportChecksum,
 			};
-			chunk.data.data = chunkData;
+			chunk.payload.data = chunkData;
+			chunk.timestamps = updateTimestamps(chunk.timestamps);
 			break;
 		}
 		case "none":
-			chunk.compression = {
+			chunk.compressionDetails = {
 				compressionStatus: "uncompressed",
-				compressionAlgorithm: "none",
-				transportChecksum: undefined,
 			};
 			// No compression applied, just return the chunk as is
 			break;
@@ -59,12 +60,15 @@ export async function compressChunk(
 export async function verifyTransportChecksum(
 	chunk: CompletedChunk,
 ): Promise<boolean> {
-	if (!chunk.compression || !chunk.compression.transportChecksum) {
+	if (
+		!chunk.compressionDetails ||
+		!chunk.compressionDetails.transportChecksum
+	) {
 		throw new Error("Chunk compression metadata is missing.");
 	}
 
-	const calculatedChecksum = await getChecksum(chunk.data.data);
-	return calculatedChecksum === chunk.compression.transportChecksum;
+	const calculatedChecksum = await getChecksum(chunk.payload.data);
+	return calculatedChecksum === chunk.compressionDetails.transportChecksum;
 }
 
 export async function decompressedChunk(
@@ -74,7 +78,10 @@ export async function decompressedChunk(
 		return chunk; // No decompression needed
 	}
 
-	if (!chunk.compression || !chunk.compression.compressionAlgorithm) {
+	if (
+		!chunk.compressionDetails ||
+		!chunk.compressionDetails.compressionAlgorithm
+	) {
 		throw new Error("Chunk compression metadata is missing.");
 	}
 
@@ -83,21 +90,19 @@ export async function decompressedChunk(
 		throw new Error("Transport checksum does not match, cannot decompress.");
 	}
 
-	switch (chunk.compression.compressionAlgorithm) {
+	switch (chunk.compressionDetails.compressionAlgorithm) {
 		case "gzip":
-			chunk.data.data = decompressWithGzip(chunk.data.data);
+			chunk.payload.data = decompressWithGzip(chunk.payload.data);
 			break;
 		case "deflate":
-			chunk.data.data = decompressWithDeflate(chunk.data.data);
+			chunk.payload.data = decompressWithDeflate(chunk.payload.data);
 			break;
 		default:
 			throw new Error("Unsupported compression algorithm.");
 	}
 
-	chunk.compression = {
+	chunk.compressionDetails = {
 		compressionStatus: "uncompressed",
-		compressionAlgorithm: "none",
-		transportChecksum: undefined,
 	};
 
 	return chunk;

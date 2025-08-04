@@ -1,6 +1,6 @@
-import type { UUID } from "crypto";
-import type { Chunk, CompletedChunk } from "../types";
+import type { Chunk, UUID } from "../types";
 import { arrayBufferToBase64, base64ToArrayBuffer } from "./base64";
+import { newTimestamp } from "./timestamp";
 
 export async function signData(
 	data: string,
@@ -34,49 +34,71 @@ export async function verifySignature(
 }
 
 export async function signChunk(
-	chunk: CompletedChunk,
+	chunk: Chunk,
 	privateKey: CryptoKey,
 	signerId: UUID,
-): Promise<CompletedChunk> {
-	if (!chunk.data) {
+): Promise<Chunk> {
+	if (typeof chunk !== "object" || !chunk || !("status" in chunk)) {
+		throw new Error("Invalid chunk provided for signing.");
+	}
+	if (chunk.status !== "completed") {
+		throw new Error("Only completed chunks can be signed.");
+	}
+	if (!chunk.payload) {
 		throw new Error("Chunk data is required for signing.");
 	}
 	if (chunk.status !== "completed") {
 		throw new Error("Only completed chunks can be signed.");
 	}
 	const dataToSign = JSON.stringify({
-		chunkData: chunk.data,
+		chunkData: chunk.payload,
 		signerId,
 	});
 	const signature = await signData(dataToSign, privateKey);
 	return {
 		...chunk,
-		signature: {
+		signatureDetails: {
 			signatureStatus: "signed",
-			value: signature,
+			signature,
 			signerId,
-			signedAt: new Date().toISOString(),
+			signedAt: newTimestamp(),
 		},
 	};
 }
 
 export async function verifyChunkSignature(
-	chunk: CompletedChunk,
+	chunk: Chunk,
 	publicKey: CryptoKey,
 ): Promise<boolean> {
-	if (!chunk.signature) {
+	if (typeof chunk !== "object" || !chunk || !("status" in chunk)) {
+		throw new Error("Invalid chunk provided for signature verification.");
+	}
+	if (chunk.status !== "completed") {
+		throw new Error("Only completed chunks can be verified.");
+	}
+	if (!chunk.signatureDetails) {
 		throw new Error("Chunk is not signed.");
 	}
+	if (chunk.signatureDetails.signatureStatus !== "signed") {
+		throw new Error("Chunk signature is invalid or missing.");
+	}
 	const dataToVerify = JSON.stringify({
-		chunkData: chunk.data,
-		signerId: chunk.signature.signerId,
-		signedAt: chunk.signature.signedAt,
+		chunkData: chunk.payload,
+		signerId: chunk.signatureDetails.signerId,
+		signedAt: chunk.signatureDetails.signedAt,
 	});
-	return verifySignature(dataToVerify, chunk.signature.value, publicKey);
+	return verifySignature(
+		dataToVerify,
+		chunk.signatureDetails.signature,
+		publicKey,
+	);
 }
 
 export async function isSigned(chunk: Chunk): Promise<boolean> {
-	if (chunk.status !== "completed" || !chunk.signature) {
+	if (typeof chunk !== "object" || !chunk || !("status" in chunk)) {
+		throw new Error("Invalid chunk provided for signature check.");
+	}
+	if (chunk.status !== "completed" || !chunk.signatureDetails) {
 		return false;
 	}
 	return true;

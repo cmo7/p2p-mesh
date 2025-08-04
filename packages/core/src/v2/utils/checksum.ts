@@ -1,4 +1,4 @@
-export type Checksum = string;
+import type { Checksum } from "../types";
 
 export async function getChecksum(data: ArrayBuffer): Promise<Checksum> {
 	const hash = await crypto.subtle.digest("SHA-256", data);

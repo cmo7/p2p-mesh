@@ -1,4 +1,6 @@
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+import type { Base64String } from "../types";
+
+export function arrayBufferToBase64(buffer: ArrayBuffer): Base64String {
 	const bytes = new Uint8Array(buffer);
 	let binary = "";
 	for (let i = 0; i < bytes.byteLength; i++) {
@@ -6,7 +8,7 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
 	}
 	return btoa(binary);
 }
-export function base64ToArrayBuffer(base64: string): ArrayBuffer {
+export function base64ToArrayBuffer(base64: Base64String): ArrayBuffer {
 	const binary = atob(base64);
 	const len = binary.length;
 	const bytes = new Uint8Array(len);
