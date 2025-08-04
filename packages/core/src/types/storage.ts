@@ -47,7 +47,7 @@ export interface FileStorage {
 		params?: PaginationParams,
 	): Promise<Result<PaginatedResult<ChunkedFile>>>;
 	onFileChanged(
-		callback: (file: ChunkedFile, event: FileEventType) => void,
+		callback: (fileID: UUID, event: FileEventType) => void,
 	): () => void;
 }
 
@@ -59,7 +59,7 @@ export interface ChunkStorage {
 		params?: PaginationParams,
 	): Promise<Result<PaginatedResult<Chunk>>>;
 	onChunkChanged(
-		callback: (chunk: Chunk, event: ChunkEventType) => void,
+		callback: (chunkID: UUID, event: ChunkEventType) => void,
 	): () => void;
 }
 

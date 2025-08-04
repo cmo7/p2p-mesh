@@ -1,53 +1,104 @@
+// ...existing code...
+// Removed unused StateCreator import
+import type {
+	ChunkedFile,
+	FileEventType,
+	FileStorage,
+	PaginatedResult,
+	PaginationParams,
+	Result,
+} from "core";
 import { create } from "zustand";
-import { type FileDBEntry, getFiles, removeFile } from "../lib/storage";
-import type { FileStatus } from "../components/FileInDB";
 
-export type FileWithProgress = {
-	status: FileStatus
-	file: FileDBEntry;
-	progress: number;
-};
-
-interface FileStore {
-	files: FileWithProgress[];
-	loadFiles: () => Promise<void>;
-	getFileByHash: (hash: string) => FileWithProgress | undefined;
-	removeFileByHash: (hash: string) => Promise<void>;
-	updateProgress: (hash: string, progress: number) => void;
-	updateStatus: (hash: string, status: FileStatus) => void;
-	addFile: (entry: FileDBEntry) => void;
+interface FileStore extends FileStorage {
+	files: ChunkedFile[];
+	_fileListeners: Array<(file: ChunkedFile, event: FileEventType) => void>;
+	_notifyFileListeners: (file: ChunkedFile, event: FileEventType) => void;
 }
 
-export const useFileStore = create<FileStore>((set, _get) => ({
-	files: [],
-	loadFiles: async () => {
-		const files = await getFiles();
-		set({ files: files.map((file) => ({ file, progress: 0, status: "waiting" })) });
+export const useFileStore = create<FileStore>((set, get) => ({
+	listFiles(
+		params?: PaginationParams,
+	): Promise<Result<PaginatedResult<ChunkedFile>>> {
+		const files = get().files;
+		// Implement your filtering logic based on params
+		const filteredFiles = files.slice(
+			params?.offset || 0,
+			(params?.offset || 0) + (params?.limit || files.length),
+		);
+		return Promise.resolve({
+			ok: true,
+			value: {
+				items: filteredFiles,
+				total: files.length,
+				offset: params?.offset || 0,
+				limit: params?.limit || files.length,
+			},
+		});
 	},
-	getFileByHash: (hash) => {
-		return _get().files.find((f) => f.file.hash === hash);
+	getFile(fileId) {
+		const files = get().files;
+		const file = files.find((f) => f.id === fileId);
+		if (!file) {
+			return Promise.resolve({
+				ok: false,
+				error: { code: "not_found", message: "File not found" },
+			});
+		}
+		return Promise.resolve({ ok: true, value: file });
 	},
-	removeFileByHash: async (hash) => {
-		await removeFile(hash);
-		set((state) => ({
-			files: state.files.filter((f) => f.file.hash !== hash),
-		}));
+	saveFile(file) {
+		const files = get().files;
+		const existingIndex = files.findIndex((f) => f.id === file.id);
+		let event: FileEventType = "added";
+		if (existingIndex !== -1) {
+			files[existingIndex] = file; // Update existing file
+			event = "updated";
+		} else {
+			files.push(file); // Add new file
+		}
+		set({ files });
+		get()._notifyFileListeners(file, event);
+		return Promise.resolve({ ok: true, value: undefined });
 	},
-	updateProgress: (hash, progress) => {
-		set((state) => ({
-			files: state.files.map((f) =>
-				f.file.hash === hash ? { ...f, progress } : f,
-			),
-		}));
+	deleteFile(fileId) {
+		const files = get().files;
+		const fileIndex = files.findIndex((f) => f.id === fileId);
+		if (fileIndex === -1) {
+			return Promise.resolve({
+				ok: false,
+				error: { code: "not_found", message: "File not found" },
+			});
+		}
+		const [removed] = files.splice(fileIndex, 1);
+		set({ files });
+		if (removed) {
+			get()._notifyFileListeners(removed, "deleted");
+		}
+		return Promise.resolve({ ok: true, value: undefined });
 	},
-	updateStatus: (hash, status) => {
-		set((state) => ({
-			files: state.files.map((f) =>
-				f.file.hash === hash ? { ...f, status } : f,
-			),
-		}));
+	onFileChanged(
+		callback: (file: ChunkedFile, event: FileEventType) => void,
+	): () => void {
+		const listeners = get()._fileListeners;
+		listeners.push(callback);
+		return () => {
+			const idx = listeners.indexOf(callback);
+			if (idx !== -1) listeners.splice(idx, 1);
+		};
 	},
-	addFile: (entry) => {
-		set((state) => ({ files: [...state.files, { file: entry, progress: 0, status: "waiting" }] }));
+	files: [] as ChunkedFile[],
+	_fileListeners: [],
+	_notifyFileListeners(file: ChunkedFile, event: FileEventType) {
+		const listeners = get()._fileListeners;
+		listeners.forEach(
+			(cb: (file: ChunkedFile, event: FileEventType) => void) => {
+				try {
+					cb(file, event);
+				} catch {
+					// Optionally log error
+				}
+			},
+		);
 	},
 }));
