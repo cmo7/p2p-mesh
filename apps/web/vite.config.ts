@@ -1,6 +1,7 @@
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import tsconfigPaths from "vite-tsconfig-paths";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -8,9 +9,10 @@ export default defineConfig({
 		tanstackRouter({
 			target: "react",
 			autoCodeSplitting: true,
-      generatedRouteTree: "./src/routes/__generated__/routeTree.gen.ts",
-      quoteStyle: "double",
+			generatedRouteTree: "./src/routes/__generated__/routeTree.gen.ts",
+			quoteStyle: "double",
 		}),
 		react(),
+		tsconfigPaths(),
 	],
 });

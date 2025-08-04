@@ -7,14 +7,25 @@ import type {
 	Result,
 	UUID,
 } from "core";
-import type { IndexedDBWrapper } from "./util/indexedDB";
+// ...existing code...
+
+import { IndexedDBWrapper } from "../util/indexedDB";
 
 export class ChunkIndexedDBStore implements ChunkStorage {
+	private static instance: ChunkIndexedDBStore | null = null;
 	private Database: IndexedDBWrapper;
 	_chunkListeners: Array<(chunk: Chunk, event: ChunkEventType) => void> = [];
 
-	constructor(database: IndexedDBWrapper) {
+	private constructor(database: IndexedDBWrapper) {
 		this.Database = database;
+	}
+
+	static getInstance(): ChunkIndexedDBStore {
+		if (!ChunkIndexedDBStore.instance) {
+			const db = IndexedDBWrapper.getInstance();
+			ChunkIndexedDBStore.instance = new ChunkIndexedDBStore(db);
+		}
+		return ChunkIndexedDBStore.instance;
 	}
 
 	_notifyChunkListeners(chunkID: UUID, event: ChunkEventType) {

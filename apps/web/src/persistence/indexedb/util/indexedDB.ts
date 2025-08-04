@@ -1,5 +1,6 @@
 // Modern IndexedDB wrapper for browser persistence
 // Allows creation of generic storages and optimizes DB instance usage
+import dbConfig from "../dbConfig";
 
 type StoreSchema = {
 	name: string;
@@ -13,12 +14,23 @@ interface DBConfig {
 }
 
 class IndexedDBWrapper {
+	private static instances: Map<string, IndexedDBWrapper> = new Map();
 	private db: IDBDatabase | null = null;
 	private config: DBConfig;
 	private openPromise: Promise<IDBDatabase> | null = null;
 
-	constructor(config: DBConfig) {
+	private constructor(config: DBConfig) {
 		this.config = config;
+	}
+
+	static getInstance(config: DBConfig = dbConfig): IndexedDBWrapper {
+		const key = config.name;
+		let instance = IndexedDBWrapper.instances.get(key);
+		if (!instance) {
+			instance = new IndexedDBWrapper(config);
+			IndexedDBWrapper.instances.set(key, instance);
+		}
+		return instance;
 	}
 
 	private openDB(): Promise<IDBDatabase> {
@@ -104,6 +116,7 @@ class IndexedDBWrapper {
 			this.db.close();
 			this.db = null;
 			this.openPromise = null;
+			IndexedDBWrapper.instances.delete(this.config.name);
 		}
 	}
 }

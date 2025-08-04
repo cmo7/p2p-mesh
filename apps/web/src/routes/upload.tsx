@@ -1,17 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { chunkFile } from "core";
 import React from "react";
+import { Button } from "../components/Button";
 import { ProgressBar } from "../components/ProgressBar";
 import { Section } from "../components/Section";
 import { MyDropzone } from "../components/UploadZone";
-import { saveChunkedFileToIndexedDB } from "../lib/storage";
+import { useStorage } from "../hooks/storage";
 import { useLog } from "../providers/log-provider";
 
 export const Route = createFileRoute("/upload")({
 	component: RouteComponent,
 });
 
-type UploadPhase = "waiting" | "reading" | "chunking" | "completed";
+type UploadPhase = "waiting" | "reading" | "chunking" | "saving" | "completed";
 
 function RouteComponent() {
 	const logger = useLog();
@@ -20,100 +21,68 @@ function RouteComponent() {
 		value: 0,
 		total: 0,
 	});
-  switch (phase) {
-    case "waiting":
-      return (
-        <Section title="Upload File">
-          <MyDropzone
-            onDrop={async (files) => {
-              setPhase("reading");
-              setProgress({ value: 0, total: files.length });
-              for (const file of files) {
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                  if (event.target?.result) {
-                    setPhase("chunking");
-                    const fileContent = event.target.result as ArrayBuffer;
-                    const chunkedFile = await chunkFile({
-                      filename: file.name,
-                      file: fileContent,
-                      chunkSize: 1024 * 1024, // 1 MB chunks
-                      onProgress: (value, total) => {
-                        setProgress({ value, total });
-                      }
-                    });
-                    await saveChunkedFileToIndexedDB(chunkedFile, {
-                      onProgress: (value, total) => {
-                        setProgress({ value, total });
-                      },
-                    });
-                    setPhase("completed");
-                    logger.log(`File ${file.name} uploaded successfully.`);
-                  } else {
-                    logger.error(`Failed to read file ${file.name}.`);
-                  }
-                };
-                reader.onerror = () => {
-                  logger.error(`Error reading file ${file.name}.`);
-                };
-                reader.readAsArrayBuffer(file);
-              }
-            }}
-            
-          />
-        </Section>
-      );
-    case "reading":
-    case "chunking":
-      return (
-        <MultiPhaseProgressBar phase={phase} progress={progress} />
-      );
-    case "completed":
-      return (
-        <Section title="Upload Completed">
-          <p>File upload completed successfully!</p>
-          <button onClick={() => setPhase("waiting")}>Upload another file</button>
-        </Section>
-      );
-    default:
-      return (
-        <Section title="Upload Error">
-          <p>Unknown upload phase: {phase}</p>
-          <button onClick={() => setPhase("waiting")}>Retry</button>
-        </Section>
-      );
-    }
-}
 
-function MultiPhaseProgressBar({
-	phase,
-	progress,
-}: {
-	phase: UploadPhase;
-	progress: { value: number; total: number };
-}) {
-	const phaseLabels: Record<UploadPhase, string> = {
-		waiting: "Waiting for file upload",
-		reading: "Reading file",
-		chunking: "Chunking file",
-		completed: "Upload completed",
+	const store = useStorage();
+
+	const handleFileUpload = async (file: File) => {
+		const chunkedFile = await chunkFile({
+			file,
+			chunkSize: 1024 * 1024, // 1MB chunks
+			onProgress: (progressValue, total) => {
+				setProgress({ value: progressValue, total });
+			},
+		});
+
+		await store.file.local.saveFile(chunkedFile);
+		await store.file.persistent.saveFile(chunkedFile);
+		setPhase("completed");
+		logger.info(`File ${file.name} uploaded successfully.`);
 	};
 
-	const phaseColor: Record<UploadPhase, string> = {
-		waiting: "gray",
-		reading: "blue",
-		chunking: "orange",
-		completed: "green",
-	};
-
-	return (
-		<Section title="Upload Progress">
-			<ProgressBar
-				label={phaseLabels[phase]}
-				progress={progress.value}
-				total={progress.total}
-				color={phaseColor[phase]}
-			/>
-		</Section>
-	);
+	switch (phase) {
+		case "waiting":
+			return (
+				<Section title="Upload File">
+					<MyDropzone
+						onDrop={async (files) => {
+							if (files.length > 0) {
+								setPhase("reading");
+								setProgress({ value: 0, total: files[0].size });
+								await handleFileUpload(files[0]);
+							}
+						}}
+					/>
+				</Section>
+			);
+		case "reading":
+		case "chunking":
+			return (
+				<Section title="Processing File">
+					<ProgressBar
+						progress={progress.value}
+						total={progress.total}
+						color="blue"
+						label={`Processing... ${Math.round(
+							(progress.value / progress.total) * 100,
+						)}%`}
+					/>
+				</Section>
+			);
+		case "completed":
+			return (
+				<Section title="Upload Completed">
+					<p>File upload completed successfully!</p>
+					<Button onClick={() => setPhase("waiting")}>
+						Upload another file
+					</Button>
+				</Section>
+			);
+		default:
+			return (
+				<Section title="Upload Error">
+					<p>Unknown upload phase: {phase}</p>
+					<Button onClick={() => setPhase("waiting")}>Retry</Button>
+				</Section>
+			);
+	}
 }

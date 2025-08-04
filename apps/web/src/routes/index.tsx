@@ -20,24 +20,15 @@ export async function getEstimatedUsage(): Promise<{
 }
 
 function RouteComponent() {
-
-
 	return (
 		<div>
-			Hello "/"!
 			<div
 				style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}
 			>
 				<Section title="Storage Quota">
 					<StorageQuota />
 				</Section>
-		
-
-			
-			
 			</div>
 		</div>
 	);
 }
-
-

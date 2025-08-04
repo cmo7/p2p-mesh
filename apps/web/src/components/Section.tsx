@@ -1,3 +1,4 @@
+import { Box, Heading } from "@chakra-ui/react";
 import type React from "react";
 
 export function Section({
@@ -8,17 +9,9 @@ export function Section({
 	children: React.ReactNode;
 }) {
 	return (
-		<section
-			style={{
-				border: "1px solid #ccc",
-				padding: "10px",
-				borderRadius: "5px",
-				backgroundColor: "#f9f9f9",
-				fontFamily: "Arial, sans-serif",
-			}}
-		>
-			<h2>{title}</h2>
+		<Box as={"section"} padding="20px" borderRadius="8px" boxShadow="md">
+			<Heading>{title}</Heading>
 			<div>{children}</div>
-		</section>
+		</Box>
 	);
 }
